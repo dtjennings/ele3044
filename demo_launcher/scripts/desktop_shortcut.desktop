@@ -1,0 +1,8 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Hoverscan Launcher
+Comment=Launch the Hoverscan demo home screen
+Exec=/home/pi/hoverscan_launcher/scripts/start_kiosk.sh
+Terminal=false
+Categories=Utility;

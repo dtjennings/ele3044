@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>HoverScan</title>
+  <link rel="stylesheet" href="styles.css" />
+  <meta name="theme-color" content="#0b1028">
+</head>
+<body>
+  <div class="bg" aria-hidden="true"></div>
+
+  <main class="shell">
+    <header class="brand">
+      <img class="brand-logo" src="logo.png" alt="HoverScan" />
+      <h1 class="brand-name">HoverScan</h1>
+    </header>
+
+    <nav class="actions" aria-label="HoverScan">
+      <button class="action" data-action="video_demo">Video Demo</button>
+      <button class="action" data-action="camera_demo">Live Demo</button>
+      <button class="action" data-action="return_desktop">Return to Pi</button>
+      <button class="action danger" data-action="power_menu">Power</button>
+    </nav>
+  </main>
+
+  <div class="modal" id="modal" aria-hidden="true">
+    <div class="modal-backdrop"></div>
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <div class="modal-title" id="modalTitle">Power</div>
+      <div class="modal-sub">Choose an action.</div>
+      <div class="modal-actions">
+        <button class="btn" data-action="reboot">Reboot</button>
+        <button class="btn btn-danger" data-action="poweroff">Power off</button>
+        <button class="btn btn-ghost" data-action="cancel">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" aria-live="polite"></div>
+  <script src="app.js"></script>
+</body>
+</html>
