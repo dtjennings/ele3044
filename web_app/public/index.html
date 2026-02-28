@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>SkyWarden</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+      html, body { font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial; }
+      .glass { backdrop-filter: blur(10px); background: rgba(255,255,255,0.06); }
+    </style>
+  </head>
+
+  <body class="min-h-screen bg-slate-950 text-slate-100">
+    <div class="pointer-events-none fixed inset-0 overflow-hidden">
+      <div class="absolute -top-40 left-1/2 h-[520px] w-[820px] -translate-x-1/2 rounded-full bg-indigo-600/20 blur-3xl"></div>
+      <div class="absolute top-40 right-[-200px] h-[420px] w-[520px] rounded-full bg-cyan-500/10 blur-3xl"></div>
+    </div>
+
+    <div class="relative mx-auto max-w-7xl px-5 py-10">
+      <header class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+        <div>
+          <div class="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-slate-200">
+            <span id="liveDot" class="h-2 w-2 animate-pulse rounded-full bg-emerald-400"></span>
+            <span id="liveText">Live</span>
+          </div>
+          <h1 class="mt-3 text-3xl font-semibold tracking-tight">SkyWarden</h1>
+          <p class="mt-2 text-sm text-slate-300">
+            Plates + timestamps + ticket ownership + performance metrics (auto-refresh).
+          </p>
+        </div>
+
+        <div class="flex flex-col gap-2 md:items-end">
+          <div class="text-xs text-slate-300">
+            Last update: <span id="lastUpdated" class="text-slate-100">—</span>
+          </div>
+          <div class="text-xs text-slate-400">
+            events.csv: <span id="eventsMtime" class="text-slate-200">—</span> •
+            metrics.csv: <span id="metricsMtime" class="text-slate-200">—</span>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <button id="refreshBtn"
+              class="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium hover:bg-white/10">
+              Refresh
+            </button>
+            <div class="glass rounded-xl border border-white/10 px-3 py-2 text-xs text-slate-200">
+              Auto-refresh:
+              <select id="pollSelect" class="ml-1 rounded-lg bg-slate-900/60 px-2 py-1 text-slate-100 outline-none">
+                <option value="500">0.5s</option>
+                <option value="1000">1s</option>
+                <option value="2000" selected>2s</option>
+                <option value="5000">5s</option>
+                <option value="0">Off</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <!-- KPIs -->
+      <section class="mt-8 grid grid-cols-1 gap-4 md:grid-cols-5">
+        <div class="glass rounded-2xl border border-white/10 p-5">
+          <div class="text-xs text-slate-300">Total detections</div>
+          <div id="kpiTotal" class="mt-2 text-2xl font-semibold">—</div>
+        </div>
+
+        <div class="glass rounded-2xl border border-white/10 p-5">
+          <div class="text-xs text-slate-300">Ticket owners</div>
+          <div id="kpiTickets" class="mt-2 text-2xl font-semibold">—</div>
+          <div id="kpiTicketsSub" class="mt-1 text-xs text-slate-400">—</div>
+        </div>
+
+        <div class="glass rounded-2xl border border-white/10 p-5">
+          <div class="text-xs text-slate-300">Average confidence</div>
+          <div id="kpiConf" class="mt-2 text-2xl font-semibold">—</div>
+          <div class="mt-1 text-xs text-slate-400">From events.csv</div>
+        </div>
+
+        <div class="glass rounded-2xl border border-white/10 p-5">
+          <div class="text-xs text-slate-300">Latest FPS</div>
+          <div id="kpiFps" class="mt-2 text-2xl font-semibold">—</div>
+          <div class="mt-1 text-xs text-slate-400">From metrics.csv</div>
+        </div>
+
+        <div class="glass rounded-2xl border border-white/10 p-5">
+          <div class="text-xs text-slate-300">Latest system</div>
+          <div id="kpiSys" class="mt-2 text-sm text-slate-200">—</div>
+          <div class="mt-1 text-xs text-slate-400">CPU • Temp • RAM</div>
+        </div>
+      </section>
+
+      <!-- FPS Chart -->
+      <section class="mt-8 glass rounded-2xl border border-white/10 p-5">
+        <div class="flex items-center justify-between">
+          <div>
+            <div class="text-sm font-medium">FPS over time</div>
+            <div class="mt-1 text-xs text-slate-400">Auto-updates from metrics.csv</div>
+          </div>
+          <div class="text-xs text-slate-400">
+            Showing last <span id="fpsPoints">—</span> points
+          </div>
+        </div>
+        <div class="mt-4">
+          <canvas id="fpsChart" height="90"></canvas>
+        </div>
+      </section>
+
+      <!-- Events Table -->
+      <section class="mt-8 glass rounded-2xl border border-white/10 p-5">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <div class="text-sm font-medium">Detections feed</div>
+            <div id="rowCount" class="rounded-full bg-white/5 px-2 py-1 text-xs text-slate-300">—</div>
+          </div>
+          <div class="text-xs text-slate-400">Click a plate to view the captured image</div>
+        </div>
+
+        <div class="mt-4 overflow-hidden rounded-2xl border border-white/10">
+          <table class="w-full">
+            <thead class="bg-white/5 text-left text-xs uppercase tracking-wider text-slate-300">
+              <tr>
+                <th class="px-4 py-3">Plate</th>
+                <th class="px-4 py-3">Timestamp</th>
+                <th class="px-4 py-3">Ticket</th>
+                <th class="px-4 py-3">Confidence</th>
+              </tr>
+            </thead>
+            <tbody id="tbody" class="divide-y divide-white/5 bg-slate-950/30 text-sm"></tbody>
+          </table>
+        </div>
+
+        <div id="emptyState" class="mt-6 hidden rounded-2xl border border-dashed border-white/10 p-10 text-center">
+          <div class="text-base font-medium">No data found</div>
+          <div class="mt-2 text-sm text-slate-400">Check that data/events.csv exists and has headers.</div>
+        </div>
+      </section>
+
+      <footer class="mt-8 text-center text-xs text-slate-500">
+        Demo UI • Local server • Auto-refresh • Not production-hardened
+      </footer>
+    </div>
+
+    <!-- Image Modal -->
+    <div id="modal" class="fixed inset-0 z-50 hidden">
+      <div id="modalBackdrop" class="absolute inset-0 bg-black/70"></div>
+      <div class="relative mx-auto mt-10 w-[92%] max-w-4xl">
+        <div class="glass rounded-2xl border border-white/10 p-4 shadow-2xl">
+          <div class="flex items-start justify-between gap-3">
+            <div>
+              <div id="modalTitle" class="text-lg font-semibold">Plate</div>
+              <div id="modalSub" class="mt-1 text-xs text-slate-300">Timestamp</div>
+            </div>
+            <button id="modalClose"
+              class="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs hover:bg-white/10">
+              Close
+            </button>
+          </div>
+
+          <div class="mt-4 overflow-hidden rounded-xl border border-white/10 bg-slate-950/40">
+            <img id="modalImg" alt="Plate capture" class="w-full object-contain" />
+          </div>
+
+          <div id="modalHint" class="mt-3 text-xs text-slate-400">
+            If the image doesn’t load, ensure events.csv has an <span class="text-slate-200">image_path</span>
+            and the file exists in the <span class="text-slate-200">/images</span> folder.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
